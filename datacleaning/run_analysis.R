@@ -1,41 +1,48 @@
 library(stringr)
 
+# driver program to run the analysis. this function reads in all the data (test,
+#   training, and label), using other functions described below, generates the 
+#   tidy data set, returning it
 run_analysis = function() {
   # 1. Merges the training and the test sets to create one data set.
   df1 = slurp_data('train','X_train.txt') 
   df2 = slurp_data('test','X_test.txt')
   df = rbind(df1,df2) # append test data to training data
-  # 2. Extracts only the measurements on the mean and standard deviation for each measurement. 
+  # 2. Extracts only the measurements on the mean and standard deviation
+  #    for each measurement. 
   flabels = slurp_features("","features.txt")
-  flmsi = grep("mean|std",flabels$V2)  # get index of all labels with mean or stdev
+  flmsi = grep("mean|std",flabels$V2)  # get index of labels with mean or stdev
   flms = flabels$V2[flmsi]  # get all labels with mean or stdev
-  flbool = grepl("mean|std",flabels$V2)  # get a TRUE|FALSE set for labels with mean or stdev
-  df_stats=df[,flbool]  # only get columns with labels that include "mean" or "std"
+  flbool = grepl("mean|std",flabels$V2)  # get a T|F set for mean|std labels
+  df_stats=df[,flbool]  # only get columns labelled "*mean*" or "*std*S"
   # 3. Uses descriptive activity names to name the activities in the data set
   af1 = slurp_data('train','y_train.txt') 
   af2 = slurp_data('test','y_test.txt')
   af = rbind(af1,af2) # append test data to training data
   alabels = slurp_features("","activity_labels.txt")
   afactors = alabels[,2] # get the six activities as a (factor) vector
-  af$label = afactors[af$V1] # add a column to af that has the descriptive activity name
+  af$label = afactors[af$V1] # add a column to af - descriptive activity name
   df_stats = cbind(df_stats,af$label)
   # 4. Appropriately labels the data set with descriptive variable names. 
   dfs_names_noact = as.character(flms) # get mean and std labels
-  dfs_names = as.character(flms) # get same, dunno if R makes a copy, so play it safe
+  dfs_names = as.character(flms) # get same, dunno if R makes a copy
   dfs_names[length(dfs_names)+1] = 'activity'
   names(df_stats) = dfs_names
-  # 5. Creates a second, independent tidy data set with the average of each variable for each activity and each subject.
+  # 5. Creates a second, independent tidy data set with the average of each
+  #    variable for each activity and each subject.
   df_stats_mean = tapply(df_stats[[1]],df_stats$activity,mean)
-  
+  # for each colum, get a mean, then append resulting 1x6 matrix to results
   for (i in 2:(ncol(df_stats)-1)) {
     stat = tapply(df_stats[[i]],df_stats$activity,mean)
     df_stats_mean = rbind(df_stats_mean, stat)
     message(paste("i =",i,"- dim =",dim(df_stats_mean)))
   }
-#  rownames(df_stats_mean) = dfs_names_noact
+  rownames(df_stats_mean) = dfs_names_noact
   df_stats_mean
 }
 
+# this function reads in raw data, one line at a time. it cleans up each line
+# then parses it into a csv, then appends that 1xY data.frame to result
 slurp_data = function(dir,fn) {
   # get data file
   f=finddatafile(dir,fn)
@@ -69,6 +76,7 @@ slurp_data = function(dir,fn) {
   frame
 }
 
+# this just reads the feature names up
 slurp_features = function(dir,fn) {
   # get data file
   f=finddatafile(dir,fn)
@@ -83,6 +91,7 @@ mygsub = function(str,pattern, repl) {
   gsub(pattern, repl, str)
 }
 
+# looks for requested file in a few places
 finddatafile = function(subdir,fn) {
   fileLoc = NULL
   if (file.exists(fn)) {
